@@ -5,15 +5,19 @@ A simple server-side rate limiter using Redis Triggers and Javascript Functions.
 This rate limiter limits the number of requests a user token API can do per minute.
 It implements the following logic: the API gateway checks the current calls in a specific minute.
 
+```
 GET [user-api-key]:[current minute number]
+```
 
 If the counter is under a threshold, increase it using the following transaction, otherwise add the API token to the Redis Stream `exceeding` and exit.
 
+```
 MULTI
 INCR [user-api-key]:[current minute number]
 EXPIRE [user-api-key]:[current minute number] 59
 QUEUED
 EXEC
+```
 
 ## Setup of the demo
 
