@@ -3,7 +3,7 @@
 // import with:
 // redis-cli -x TFUNCTION LOAD REPLACE < ./limiter.js
 
-redis.registerKeySpaceTrigger("limiter", "api:", function(client, data){
+redis.registerKeySpaceTrigger("limiter", "{api:", function(client, data){
     if ((data.event == 'incrby') || (data.event == 'incr')){
 
         // log the event
@@ -14,7 +14,7 @@ redis.registerKeySpaceTrigger("limiter", "api:", function(client, data){
 
         // build the Hash name, e.g.: {api:5I68T5910K}:data
         // the use of curly brackets is to co-locate the data with the counter
-        const tokenApiData = `{${tokenApi}}:data`;
+        const tokenApiData = `${tokenApi}:data`;
 
         // get the current timestamp
         var curr_time = client.call("time")[0];

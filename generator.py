@@ -54,7 +54,7 @@ def main(argv):
 
 
 def api_call():
-    token = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+    token = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
     print("initializing API " + token)
     for x in range(ARGS.iterations):
         if not limiter(token, ARGS.threshold):
@@ -65,7 +65,7 @@ def api_call():
 
 
 def limiter(token, threshold):
-    token_minute = "api:" + token + ":" + str(datetime.datetime.now().minute)
+    token_minute = "{api:" + token + "}:" + str(datetime.datetime.now().minute)
     ops = conn.get(token_minute)
     if (ops is not None) and (int(ops) > threshold):
         return False
