@@ -61,7 +61,7 @@ def api_call():
             print(token + ' is exceeding the threshold:')
         else:
             print(token + ' ok')
-        sleep(randint(0,1))
+        sleep(randint(0,100)/1000)
 
 
 def limiter(token, threshold):
