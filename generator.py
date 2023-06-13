@@ -25,10 +25,11 @@ def main(argv):
     signal.signal(signal.SIGINT, signal_handler)
     parser = argparse.ArgumentParser(description='redistroy, Provision random data and do things')
     parser.add_argument('--host', default="127.0.0.1", help='Host (default: 127.0.0.1)')
-    parser.add_argument('-P', '--port', type=int, default=6379, help='Port (default: 6379)')
+    parser.add_argument('-p', '--port', type=int, default=6379, help='Port (default: 6379)')
     parser.add_argument('-u', '--user', required=False, help='User')
-    parser.add_argument('-p', '--password', required=False, help='Password')
+    parser.add_argument('-P', '--password', required=False, help='Password')
     parser.add_argument('-c', '--concurrency', type=int, required=True, help='Concurrency')
+    parser.add_argument('-i', '--iterations', type=int, default=1000, required=False, help='Iterations')
     parser.add_argument('-t', '--threshold', type=int, required=True, help='Allowed operations per minute')
     args = parser.parse_args()
     global ARGS
@@ -55,23 +56,24 @@ def main(argv):
 def api_call():
     token = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
     print("initializing API " + token)
-    for x in range(100000):
-        if not conn.execute_command('TFCALL', 'limiter', 'check_limits', 0, token, ARGS.threshold):
-            print("token exceeding the threshold:" + token)
+    for x in range(ARGS.iterations):
+        if not limiter(token, ARGS.threshold):
+            print(token + ' is exceeding the threshold:')
+        else:
+            print(token + ' ok')
         sleep(randint(0,1))
 
 
-# equivalent Python rate limiter
 def limiter(token, threshold):
     token_minute = "api:" + token + ":" + str(datetime.datetime.now().minute)
+    ops = conn.get(token_minute)
+    if (ops is not None) and (int(ops) > threshold):
+        return False
     p = conn.pipeline(transaction=True)
     p.incr(token_minute)
     p.expire(token_minute, 59)
-    ret = p.execute()
-    if ret[0] < threshold:
-        return True
-    else:
-        return False
+    p.execute()
+    return True
 
 
 def signal_handler(sig, frame):

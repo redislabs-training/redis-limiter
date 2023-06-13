@@ -4,39 +4,23 @@
 // redis-cli -x TFUNCTION LOAD REPLACE < ./limiter.js
 
 redis.registerKeySpaceTrigger("limiter", "api:", function(client, data){
-    if (data.event == 'expired'){
+    if ((data.event == 'incrby') || (data.event == 'incr')){
+
+        // log the event
         redis.log(JSON.stringify(data));
-        redis.log("Expiration of a api-per-minute counter");
+
+        // get the token identifier
+        const tokenApi = data.key.split(":").slice(0, -1).join(":");
+
+        // build the Hash name, e.g.: {api:5I68T5910K}:data
+        // the use of curly brackets is to co-locate the data with the counter
+        const tokenApiData = `{${tokenApi}}:data`;
+
+        // get the current timestamp
+        var curr_time = client.call("time")[0];
+
+        // add data to the Hash
+        client.call('hset', tokenApiData, 'last', curr_time);
+        client.call('hincrby', tokenApiData, 'ops', '1');
     }
-});
-
-
-redis.registerFunction('check_limits', function(client, token, threshold){
-    const date = new Date();
-    let token_minute = "api:" + token + ":" + date.getMinutes().toString()
-    ops = client.call("INCR", token_minute) 
-    client.call("EXPIRE", token_minute, "59")
-    if (ops < threshold)
-        return true;
-    else {
-        client.call("XADD", "exceeding", "*", token, Date.now().toString())
-        return false;
-    }
-});
-
-
-redis.registerStreamTrigger(
-    "consumer", 
-    "exceeding", 
-    function(client, data) {
-        redis.log(JSON.stringify(data, (key, value) =>
-            typeof value === 'bigint'
-                ? value.toString()
-                : value 
-        ));
-    }, 
-    {
-        isStreamTrimmed: true,
-        window: 3
-    }
-);
+}); 

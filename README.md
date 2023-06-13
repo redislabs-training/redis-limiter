@@ -1,23 +1,29 @@
 # Redis Rate Limiter
 
-A simple server-side rate limiter using Redis Triggers and Javascript Functions.
-
-This rate limiter limits the number of requests a user token API can do per minute.
-It implements the following logic: the API gateway checks the current calls in a specific minute.
+In the rate-limiting use case, each user token is allowed a certain number of requests per minute. Implementing a rate limiter with Redis is straightforward and is based on counters. The traditional logic of a rate limiter implies that the API gateway checks the current calls in a specific minute.
 
 ```
 GET [user-api-key]:[current minute number]
 ```
 
-If the counter is under a threshold, increase it using the following transaction, otherwise add the API token to the Redis Stream `exceeding` and exit.
+If the counter is under a threshold, increase it using the following transaction and allow the operation. Otherwise, deny the operation until the next minute.
 
 ```
 MULTI
 INCR [user-api-key]:[current minute number]
 EXPIRE [user-api-key]:[current minute number] 59
-QUEUED
 EXEC
 ```
+
+
+## An enhanced Rate Limiter
+
+This basic implementation for a rate limiter can be expanded by adding per-token additional data, such as the last-updated timestamp. A proposal to extend the basic rate limiter *without making any changes to the application* involves using Triggers with JavaScript functions. Extending the basic rate limiter in this way can be achieved without impacting the application servers, as described below:
+
+1. The existing counter `[user-api-key]:[current minute number]` keeps track of the number of requests per token in the current minute.
+2. We attach a keyspace trigger that executes a JavaScript function whenever a counter is incremented.
+3. When the counter is incremented, we store the last updated timestamp in a Hash co-located in the same shard as the counter itself, using a hashtag, for example `{[user-api-key]}:data`. Additional information can be stored in the Hash, such as the total number of requests for that token.
+
 
 ## Setup of the demo
 
@@ -29,7 +35,7 @@ You can test this proof-of-concept using the latest Docker image including the "
 docker run -p 6379:6379 redislabs/redisgears:edge
 ```
 
-And import the Javascript library into the Redis Server:
+Clone this repository and import the Javascript library into the Redis Server:
 
 ```
 redis-cli -x TFUNCTION LOAD REPLACE < ./limiter.js
@@ -46,14 +52,29 @@ pip install redis
 And start the demo as follows:
 
 ```
-python3 generator.py -P 6379 -c 3 -t 100
+python3 generator.py --host localhost --port 6389 --concurrency 3 --threshold 100
 ```
 
-## Use of Triggers
+Options to configure the load generator are:
 
-This proof-of-concept implements two triggers:
+```
+--host          Host (default: 127.0.0.1)
+--port          Port (default: 6379)
+--user          User
+--password      Password
+--concurrency   Concurrency
+--iterations    Iterations
+--threshold     Allowed operations per minute
+```
 
-- A trigger is subscribed to the API token counters. Custom implementation can be added, such as storing the counter in a Redis Time Series for subsequent analytics
-- Another trigger is subscribed to the Stream `exceeding` and logs the data received. Custom implementation can be added to the trigger
+![demo](limiter.gif)
+
+
+## Further developments
+
+The same keyspace trigger can enhance the rate limiter with additional functionality, such as:
+
+- Data in Hash data structures can be indexed, and querying the user metadata space with `FT.SEARCH` can provide useful information such as the oldest and newest token usage, sorting tokens by usage, sorting tokens by the total number of requests, and more.
+- storing all the requests in a per-token time series, enabling token usage analytics (usage during a time window, averages, etc.).
 
 
