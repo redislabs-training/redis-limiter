@@ -58,7 +58,7 @@ def api_call():
     print("initializing API " + token)
     for x in range(ARGS.iterations):
         if not limiter(token, ARGS.threshold):
-            print(token + ' is exceeding the threshold:')
+            print(token + ' is exceeding the threshold')
         else:
             print(token + ' ok')
         sleep(randint(0,100)/1000)
