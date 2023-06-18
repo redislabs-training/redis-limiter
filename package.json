@@ -1,0 +1,24 @@
+{
+  "name": "redis-limiter",
+  "version": "1.0.0",
+  "description": "In the rate-limiting use case, each user token is allowed a certain number of requests in a limited amount of time. One of the simplest algorithms that solve this problem is the \"Fixed window counter\" algorithm which checks the number of calls in a specific time interval.  Implementing this algorithm with Redis is straightforward and is based on counters. The traditional logic of a rate limiter implies that the API gateway checks the current calls in a specific minute.",
+  "main": "limiter.js",
+  "scripts": {
+    "build": "npx webpack --config webpack.config.js",
+    "deploy": "echo \"Building\";npm run build;echo \"Deploying\";redis-cli -x TFUNCTION LOAD REPLACE < ./dist/main.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/redislabs-training/redis-limiter.git"
+  },
+  "keywords": [],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/redislabs-training/redis-limiter/issues"
+  },
+  "homepage": "https://github.com/redislabs-training/redis-limiter#readme",
+  "devDependencies": {
+    "webpack": "^5.87.0",
+    "webpack-cli": "^5.1.4"
+  }
+}
