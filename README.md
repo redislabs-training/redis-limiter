@@ -40,7 +40,7 @@ docker run -p 6379:6379 redislabs/redisgears:edge
 Clone this repository and import the Javascript library into the Redis Server:
 
 ```
-redis-cli -x TFUNCTION LOAD REPLACE < ./limiter.js
+npm run deploy
 ```
 
 A load generator is provided and written in Python. Now prepare the Python environment:
