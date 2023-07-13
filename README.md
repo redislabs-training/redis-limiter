@@ -34,7 +34,7 @@ This is a server-side rate limiter written in JavaScript and uses triggers to de
 You can test this proof-of-concept using the latest Docker image including the "Triggers and Functions" feature. Start a container as follows:
 
 ```
-docker run -p 6379:6379 redislabs/redisgears:edge
+docker run -d --name my-redis-stack -p 6379:6379 redis/redis-stack:7.2.0-RC3
 ```
 
 Clone this repository and import the Javascript library into the Redis Server:
