@@ -17,6 +17,14 @@ EXPIRE {[user-api-key]}:[current minute number] 59
 EXEC
 ```
 
+## Prerequisites
+
+To run the project yourself, you will need:
+- [Redis](https://redis.io/) with the [Triggers and Functions](https://github.com/RedisGears/RedisGears#run-using-docker) module.
+- Redis-cli
+- [git](https://git-scm.com/download) command line tools.
+- [Node.js](https://nodejs.org/) and [npm](https://www.npmjs.com)
+- [Python](https://www.python.org/)
 
 ## An enhanced Rate Limiter
 
@@ -37,10 +45,19 @@ You can test this proof-of-concept using the latest Docker image including the "
 docker run -d --name my-redis-stack -p 6379:6379 redis/redis-stack:7.2.0-RC3
 ```
 
-Clone this repository and import the Javascript library into the Redis Server:
+Clone this repository and import the Javascript library into the Redis Server. Npm is used to automate the deployment of the Triggers and Functions library.
+
+In the package.json use the scripts section to add:
+```Json
+"scripts": {
+    "deploy": "echo \"Deploying\"; redis-cli -x TFUNCTION LOAD REPLACE < ./src/limiter.js"
+  }
+```
+
+To deploy the Triggers and Functions:
 
 ```
-redis-cli -x TFUNCTION LOAD REPLACE < ./limiter.js
+npm run deploy
 ```
 
 A load generator is provided and written in Python. Now prepare the Python environment:
@@ -71,6 +88,48 @@ Options to configure the load generator are:
 
 ![demo](limiter.gif)
 
+## Limiter.js
+
+The `limiter.js` file contains the trigger registration and the callback function that is executed on each event for the keys starting with the `{api:` prefix.
+
+The trigger registration
+```JavaScript
+redis.registerKeySpaceTrigger('limiter', '{api:', function(client, data){ ... });
+```
+
+- `limiter`: The name of the trigger.
+- `{api:`: Key prefix where to listen to changes.
+- `function(client, data){...}`: The callback signature containing a client to execute Redis commands and the data we receive from the trigger.
+
+Within the callback function we define what events to react to. The `redis` object can be used for registering functions, triggers and logging.
+
+```JavaScript
+redis.registerKeySpaceTrigger('limiter', '{api:', function(client, data){
+    if((data.event == 'incrby') || (data.event == 'incr')){
+        
+        // log the event
+        redis.log(JSON.stringify(data));
+    }
+});
+```
+
+If the event is generated because of a `incrby` or `incr` event, the business logic is applied and the `client` object is used to `call()` a command on the Redis Server.
+
+```JavaScript
+// get the token identifier
+const tokenApi = data.key.split(":").slice(0, -1).join(":");
+
+// build the Hash name, e.g.: {api:5I68T5910K}:data
+// the use of curly brackets is to co-locate the data with the counter
+const tokenApiData = `${tokenApi}:data`;
+
+// get the current timestamp
+var curr_time = client.call("time")[0];
+
+// add data to the Hash
+client.call('hset', tokenApiData, 'last', curr_time);
+client.call('hincrby', tokenApiData, 'ops', '1');
+```
 
 ## Further developments
 
@@ -78,5 +137,3 @@ The same keyspace trigger can enhance the rate limiter with additional functiona
 
 - Data in Hash data structures can be indexed, and querying the user metadata space with `FT.SEARCH` can provide useful information such as the oldest and newest token usage, sorting tokens by usage, sorting tokens by the total number of requests, and more.
 - storing all the requests in a per-token time series, enabling token usage analytics (usage during a time window, averages, etc.).
-
-
